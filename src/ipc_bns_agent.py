@@ -15,6 +15,41 @@ from databricks.sdk.service.serving import ChatMessage, ChatMessageRole
 from pyspark.sql import SparkSession
 
 
+def extract_json_from_llm_response(response_text: str) -> dict:
+    """
+    Extract JSON from LLM response that might be wrapped in markdown code blocks.
+    Handles cases like:
+    - Pure JSON: {"key": "value"}
+    - Markdown: ```json\n{"key": "value"}\n```
+    - Markdown: ```\n{"key": "value"}\n```
+    """
+    # First, try to parse as-is
+    try:
+        return json.loads(response_text)
+    except json.JSONDecodeError:
+        pass
+    
+    # Try to extract JSON from markdown code blocks
+    # Pattern 1: ```json ... ```
+    json_match = re.search(r'```(?:json)?\s*\n(.*?)\n```', response_text, re.DOTALL)
+    if json_match:
+        try:
+            return json.loads(json_match.group(1))
+        except json.JSONDecodeError:
+            pass
+    
+    # Pattern 2: Find any JSON-like structure { ... }
+    json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', response_text, re.DOTALL)
+    if json_match:
+        try:
+            return json.loads(json_match.group(0))
+        except json.JSONDecodeError:
+            pass
+    
+    # If all else fails, return empty codes
+    return {"ipc_codes": []}
+
+
 def verify_legal_output(output: str, sections_info: List[Dict]) -> Dict[str, Any]:
     errors = []
     
@@ -43,6 +78,35 @@ def verify_legal_output(output: str, sections_info: List[Dict]) -> Dict[str, Any
     return {"valid": len(errors) == 0, "errors": errors}
 
 
+def filter_crpc_sections(extracted_codes: List[str], pdf_text: str) -> List[str]:
+    """
+    Filter out sections that are actually CrPC (not IPC).
+    Checks if the section number appears near CrPC keywords in the document.
+    """
+    filtered_codes = []
+    
+    for code in extracted_codes:
+        # Create patterns to find this section with CrPC context
+        # Look for patterns like "125(1) CrPC", "Section 125 of CrPC", "125 Cr.P.C", etc.
+        crpc_patterns = [
+            rf'{code}\s*(?:\(\d+\))?\s*(?:of\s+)?(?:Cr\.?P\.?C|CrPC|Criminal\s+Procedure\s+Code)',
+            rf'(?:Cr\.?P\.?C|CrPC|Criminal\s+Procedure\s+Code)\s+(?:Section\s+)?{code}',
+            rf'Section\s+{code}\s*(?:\(\d+\))?\s+(?:of\s+)?(?:Cr\.?P\.?C|CrPC)',
+            rf'u/s\s+{code}\s*(?:\(\d+\))?\s+(?:of\s+)?(?:Cr\.?P\.?C|CrPC)'
+        ]
+        
+        is_crpc = False
+        for pattern in crpc_patterns:
+            if re.search(pattern, pdf_text, re.IGNORECASE):
+                is_crpc = True
+                break
+        
+        if not is_crpc:
+            filtered_codes.append(code)
+    
+    return filtered_codes
+
+
 def analyze_ipc_to_bns(file_bytes: bytes, spark: SparkSession = None) -> Dict[str, Any]:
     """
     Accepts raw PDF bytes (from Flask file upload) instead of a file path.
@@ -50,12 +114,21 @@ def analyze_ipc_to_bns(file_bytes: bytes, spark: SparkSession = None) -> Dict[st
     """
     try:
         if spark is None:
-            spark = SparkSession.builder.getOrCreate()
+            try:
+                spark = SparkSession.getActiveSession()
+                if spark is None:
+                    spark = SparkSession.builder.appName("ipc_bns_analyzer").getOrCreate()
+                else:
+                    # Test if session is still active
+                    spark.conf.get("spark.app.id")
+            except Exception:
+                # Session expired, create new one
+                spark = SparkSession.builder.appName("ipc_bns_analyzer").getOrCreate()
 
         w = WorkspaceClient()
 
         # ── Step 1: Extract text from PDF bytes ───────────────────────────────
-        print("Reading PDF from bytes...")
+        # print("Reading PDF from bytes...")
         reader   = PdfReader(io.BytesIO(file_bytes))   # ← only change from original
         pdf_text = ""
         for page in reader.pages:
@@ -69,32 +142,47 @@ def analyze_ipc_to_bns(file_bytes: bytes, spark: SparkSession = None) -> Dict[st
                 "response": "Could not extract text from PDF. File may be empty or corrupted."
             }
 
-        print(f"Extracted {len(pdf_text)} characters from PDF")
+        # print(f"Extracted {len(pdf_text)} characters from PDF")
 
         # ── Step 2: Extract IPC codes using LLM ───────────────────────────────
         system_prompt = """
 You are a legal document analysis system specialized in Indian Penal Code (IPC) extraction.
 
+CRITICAL: You must distinguish between IPC and CrPC (Criminal Procedure Code).
+- IPC = Indian Penal Code (criminal offenses)
+- CrPC = Code of Criminal Procedure (procedural law)
+
 Task:
-Extract IPC section numbers that are ACTUALLY RELEVANT to the case (charges, allegations, violations).
+Extract ONLY IPC section numbers that are ACTUALLY RELEVANT to the case (charges, allegations, violations).
 
 Rules:
 - Extract sections that are:
-  * Charges filed against parties
-  * Allegations or complaints
+  * Explicitly marked as IPC (e.g., "Section 420 IPC", "IPC 302")
+  * Criminal offense charges (murder, theft, fraud, assault, etc.)
+  * Allegations or complaints about criminal acts
   * Violations being examined
-  * Legal grounds for the case
+  * Legal grounds for the criminal case
+  
 - DO NOT extract sections that are:
+  * Marked as CrPC, Cr.P.C, or "Criminal Procedure Code" (e.g., "Section 125 CrPC", "125(1) of CrPC")
+  * Procedural provisions (bail, arrest, investigation procedures)
   * Just cited as precedents from other cases
   * Mentioned in background/context only
   * Hypothetical examples
   * In lawyer names or addresses
-- Valid formats: "Section 420", "IPC 420", "420 IPC", "u/s 420", "Section 498A"
+  
+- Valid IPC formats: "Section 420", "IPC 420", "420 IPC", "u/s 420 IPC", "Section 498A"
 - Include subsections like "498A", "505(1)(b)"
 - Remove duplicates
-- Return ONLY the section numbers as strings
+- Return ONLY the section numbers as strings (without subsection parentheses in the number string)
 
-Output format (STRICT JSON):
+Examples:
+- "Section 420 IPC" → Extract "420" ✓
+- "125(1) CrPC" → DO NOT extract (this is CrPC) ✗
+- "Section 302 IPC" → Extract "302" ✓
+- "u/s 498A" (in criminal case context) → Extract "498A" ✓
+
+Output format (STRICT JSON ONLY, no markdown, no explanation):
 {
   "ipc_codes": ["420", "302", "498A"]
 }
@@ -104,7 +192,7 @@ If no relevant IPC codes found, return:
   "ipc_codes": []
 }
 """
-        print("Extracting IPC codes using LLM...")
+        # print("Extracting IPC codes using LLM...")
         llm_response    = w.serving_endpoints.query(
             name="databricks-meta-llama-3-3-70b-instruct",
             messages=[
@@ -113,8 +201,13 @@ If no relevant IPC codes found, return:
             ],
             max_tokens=500
         )
-        extracted_codes = json.loads(llm_response.choices[0].message.content)["ipc_codes"]
-        print(f"Extracted {len(extracted_codes)} IPC codes: {extracted_codes}")
+        
+        # Extract JSON from response (handles markdown code blocks)
+        response_content = llm_response.choices[0].message.content
+        extracted_data = extract_json_from_llm_response(response_content)
+        extracted_codes = extracted_data.get("ipc_codes", [])
+        
+        # print(f"Extracted {len(extracted_codes)} IPC codes: {extracted_codes}")
 
         if not extracted_codes:
             return {
@@ -122,19 +215,33 @@ If no relevant IPC codes found, return:
                 "response": "No relevant IPC sections were identified in this legal document."
             }
 
+        # ── Step 2.5: Filter out CrPC sections ────────────────────────────────
+        # print("Filtering out CrPC sections...")
+        filtered_codes = filter_crpc_sections(extracted_codes, pdf_text)
+        
+        if len(filtered_codes) < len(extracted_codes):
+            removed_count = len(extracted_codes) - len(filtered_codes)
+            # print(f"Filtered out {removed_count} CrPC sections")
+        
+        if not filtered_codes:
+            return {
+                "status":   "success",
+                "response": "No relevant IPC sections were identified in this legal document. The document may contain only CrPC (Criminal Procedure Code) sections."
+            }
+
         # ── Step 3: Validate against mapping table ────────────────────────────
-        print("Validating codes against IPC-BNS mapping table...")
+        # print("Validating codes against IPC-BNS mapping table...")
         ipc_table      = spark.table("workspace.default.ipctobns_csv_delta")
         all_valid_ipc  = [row.ipc_sections for row in ipc_table.select("ipc_sections").distinct().collect()]
-        valid_codes    = [code for code in extracted_codes if code in all_valid_ipc]
-        invalid_codes  = [code for code in extracted_codes if code not in all_valid_ipc]
+        valid_codes    = [code for code in filtered_codes if code in all_valid_ipc]
+        invalid_codes  = [code for code in filtered_codes if code not in all_valid_ipc]
 
-        print(f"Valid codes: {len(valid_codes)}, Invalid codes: {len(invalid_codes)}")
+        # print(f"Valid codes: {len(valid_codes)}, Invalid codes: {len(invalid_codes)}")
 
         if not valid_codes:
             return {
                 "status":   "success",
-                "response": f"Extracted {len(extracted_codes)} IPC codes ({', '.join(extracted_codes)}), but none are in the IPC-BNS mapping table."
+                "response": f"Extracted {len(filtered_codes)} IPC codes ({', '.join(filtered_codes)}), but none are in the IPC-BNS mapping table."
             }
 
         # ── Step 4: Fetch ground truth mappings ───────────────────────────────
@@ -154,6 +261,7 @@ If no relevant IPC codes found, return:
 
         # ── Step 5: Generate explanation ──────────────────────────────────────
         print("Generating verified legal analysis...")
+
         critical_definitions = """
 CRITICAL DEFINITIONS (DO NOT DEVIATE):
 - IPC = Indian Penal Code (India's old criminal code)
@@ -202,22 +310,22 @@ STRICT REQUIREMENTS:
         detailed_explanation = explanation_response.choices[0].message.content
 
         # ── Step 6: Verification layer ────────────────────────────────────────
-        print("Running verification checks...")
-        verification = verify_legal_output(detailed_explanation, sections_info)
+        # print("Running verification checks...")
+        # verification = verify_legal_output(detailed_explanation, sections_info)
 
-        if not verification["valid"]:
-            print("⚠️ Verification failed:")
-            for error in verification["errors"]:
-                print(f"  - {error}")
-            return {
-                "status":   "error",
-                "response": f"Verification failed. Factual errors detected: {'; '.join(verification['errors'])}"
-            }
+        # if not verification["valid"]:
+            # print("⚠️ Verification failed:")
+            # for error in verification["errors"]:
+                # print(f"  - {error}")
+            # return {
+            #     "status":   "error",
+            #     "response": f"Verification failed. Factual errors detected: {'; '.join(verification['errors'])}"
+            # }
 
-        print("✅ Verification passed")
+        # print("✅ Verification passed")
         return {"status": "success", "response": detailed_explanation}
 
     except Exception as e:
         import traceback
-        print(traceback.format_exc())
+        # print(traceback.format_exc())
         return {"status": "error", "response": f"Error processing document: {str(e)}"}

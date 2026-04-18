@@ -87,15 +87,15 @@ def execute_agents(user_query, agents_to_call):
     results = {}
 
     if "legal_advice" in agents_to_call:
-        print("⚖️  Calling legal_advise_agent...")
+        # print("⚖️  Calling legal_advise_agent...")
         results["legal_advice"] = legal_advise_agent(user_query)
 
     if "procedure" in agents_to_call:
-        print("📋 Calling procedure_agent...")
+        # print("📋 Calling procedure_agent...")
         results["procedure"] = procedure_agent(user_query)
 
     if "query" in agents_to_call:
-        print("💬 Calling query_agent...")
+        # print("💬 Calling query_agent...")
         results["query"] = query_agent(user_query)
 
     return results
@@ -128,7 +128,7 @@ def citizenRouter(user_query):
     agents      = decision.get("agents", ["fallback"])
     reason      = decision.get("reason", "")
 
-    print(f"📌 Decision: {agents} — {reason}\n")
+    # print(f"📌 Decision: {agents} — {reason}\n")
 
     # Step 2: Handle fallback
     if "fallback" in agents:

@@ -1,0 +1,16 @@
+# Web framework
+flask
+flask-cors
+
+# Databricks
+databricks-sdk
+databricks-vectorsearch
+databricks-connect
+
+# PDF processing
+PyPDF2
+
+# Utilities
+requests
+python-dotenv
+werkzeug

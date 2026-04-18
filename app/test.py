@@ -1,5 +1,8 @@
 import os
 import sys
+import logging
+logging.getLogger("pyspark.sql.connect.logging").setLevel(logging.CRITICAL)
+logging.getLogger("py4j").setLevel(logging.CRITICAL)
 
 # ── Install dependencies ─────────────────────────────────────────────────────
 import subprocess
@@ -7,6 +10,16 @@ subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", "databricks
 
 # ── Make sure src/ is importable ─────────────────────────────────────────────
 sys.path.insert(0, '/Workspace/Repos/cse240001024@iiti.ac.in/Nyaya_Sutra/app')
+
+# ── Ensure fresh Spark session ───────────────────────────────────────────────
+try:
+    from pyspark.sql import SparkSession
+    from databricks.sdk.runtime import spark
+    # Recreate session if expired
+    spark.conf.set("spark.databricks.connect.timeout", "300s")
+    print("✅ Spark session refreshed")
+except Exception as e:
+    print(f"⚠️  Could not refresh Spark session: {e}")
 
 # ── Set env vars if not already set (Databricks Apps sets these automatically)
 if not os.environ.get("DATABRICKS_TOKEN"):
@@ -74,14 +87,14 @@ def test_lawyer_chat(query="", file_path=None, mode="advocate"):
         result = lawyer_router(query=query, file_bytes=file_bytes)
         response = {
             "reply":     result["response"],
-            "type":      result["type"],
-            "route":     result["route"],
-            "used_file": result.get("used_file", False)
+            # "type":      result["type"],
+            # "route":     result["route"],
+            # "used_file": result.get("used_file", False)
         }
         # print(f"TYPE:      {response['type']}")
         # print(f"ROUTE:     {response['route']}")
         # print(f"USED FILE: {response['used_file']}")
-        print(f"REPLY:\n{response['reply']}")
+        # print(f"REPLY:\n{response['reply']}")
         return response
     except Exception as e:
         print(f"❌ ERROR: {str(e)}")
@@ -95,14 +108,14 @@ def test_lawyer_chat(query="", file_path=None, mode="advocate"):
 
 # --- Citizen tests ---
 # test_citizen_chat("Hello")
-# test_citizen_chat("What does Section 302 IPC say?")
+test_citizen_chat("I murdered someone while defending myself , what should I do now ?")
 # test_citizen_chat("My landlord locked my house illegally, what should I do?")
 # test_citizen_chat("What's the weather today?")
 
 # --- Lawyer tests (text only) ---
 # test_lawyer_chat(query="What is the difference between IPC 420 and BNS equivalent?")
 # test_lawyer_chat(query="Summarize the changes in theft related sections from IPC to BNS")
-test_lawyer_chat(query="Hello")
+# test_lawyer_chat(query="Hello")
 
 # --- Lawyer test (file only — auto IPC conversion) ---
 test_lawyer_chat(file_path="/Volumes/workspace/default/hackathon_volume/State_Bank_Of_India_vs_Dr_Vijay_Mallya_on_11_July_2022.PDF")
