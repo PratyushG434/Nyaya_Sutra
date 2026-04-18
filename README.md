@@ -36,7 +36,7 @@ Nyaya-Sutra is an agentic AI legal assistant tailored for the Indian legal frame
 ---
 
 ## 🏛️ System Architecture & Data Flow
-
+<img src="flowchart.png" alt="flowchart">
 ```mermaid
 flowchart TD
     %% Base Inputs
