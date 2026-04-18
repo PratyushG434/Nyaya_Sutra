@@ -2,8 +2,14 @@ from flask import Flask, send_from_directory, request, jsonify
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import uuid
-import os
 import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# Import routers at module level after sys.path is configured
+from src.citizen_router import citizenRouter
+from src.lawyer_router import lawyer_router
 
 app = Flask(__name__, static_folder="static", static_url_path="")
 CORS(app)
@@ -52,8 +58,6 @@ def serve_file(filename):
 # ── Citizen chat ──────────────────────────────────────────────────────────────
 @app.route("/api/chat", methods=["POST"])
 def chat():
-    from src.citizen_router import citizenRouter
-    
     data  = request.get_json()
     query = data.get("message", "").strip()
     mode  = data.get("mode", "citizen")
@@ -77,8 +81,6 @@ def chat():
 # ── Lawyer chat ───────────────────────────────────────────────────────────────
 @app.route("/api/lawyer-chat", methods=["POST"])
 def lawyer_chat():
-    from src.lawyer_router import lawyer_router
-    
     query      = request.form.get("message", "").strip()
     mode       = request.form.get("mode", "advocate")
     file_bytes = None
