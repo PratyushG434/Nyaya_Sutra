@@ -1,0 +1,7 @@
+command: ["python", "app/main.py"]
+
+env:
+  - name: LLM_BASE_URL
+    value: "https://7474659960532088.ai-gateway.cloud.databricks.com/mlflow/v1"
+  - name: MODEL
+    value: "databricks-gpt-5-4"
