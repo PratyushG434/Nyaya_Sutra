@@ -1,4 +1,4 @@
-# Nyaya-AI — Agentic Legal Intelligence Platform
+# Nyaya-Sutra — Agentic Legal Intelligence Platform
 
 > **Databricks Native App**
 > Powered by Databricks GPT-5-4 · Agent-Driven Legal Workflows · Dual-Mode Interface
@@ -7,13 +7,13 @@
 
 Understanding and navigating the complexities of Indian law can be an overwhelming challenge for citizens, while legal professionals often face time-consuming tasks related to legal auditing, tracing citations, and cross-referencing old IPC sections with the new BNS (Bharatiya Nyaya Sanhita). 
 
-**Nyaya-AI** was built as a fully-featured, agent-driven legal intelligence platform native to Databricks. It employs a dynamic agentic architecture to serve two distinct personas: Advocates and Citizens. By leveraging high-performance large language models (databricks-gpt-5-4) combined with a structured IPC-to-BNS mapping agent, the platform delivers deep courtroom-grade legal analysis for professionals while simplifying legal procedures into dynamic, state-aware action checklists for everyday citizens.
+**Nyaya-Sutra** was built as a fully-featured, agent-driven legal intelligence platform native to Databricks. It employs a dynamic agentic architecture to serve two distinct personas: Advocates and Citizens. By leveraging high-performance large language models (databricks-gpt-5-4) combined with a structured IPC-to-BNS mapping agent, the platform delivers deep courtroom-grade legal analysis for professionals while simplifying legal procedures into dynamic, state-aware action checklists for everyday citizens.
 
 ---
 
-## What is Nyaya-AI?
+## What is Nyaya-Sutra?
 
-Nyaya-AI is an agentic AI legal assistant tailored for the Indian legal framework that features:
+Nyaya-Sutra is an agentic AI legal assistant tailored for the Indian legal framework that features:
 - **Dual-Mode Functionality**: 
   - **Advocate Mode**: Deep legal auditing, precedent validation, timeline creation, and citation cross-referencing.
   - **Citizen Mode**: Plain-language legal guidance with actionable, dynamic step-by-step procedure checklists.
@@ -31,7 +31,6 @@ Nyaya-AI is an agentic AI legal assistant tailored for the Indian legal framewor
 | **Backend** | Python (`app/main.py`) | Agent orchestration, routing, and API serving |
 | **Agentic Core** | Custom multi-agent framework | Specialized agents (`audit.py`, `citation_tracer.py`, `ipc_bns_agent.py`, etc.) |
 | **Frontend** | React + Vite + TypeScript + Tailwind CSS | Highly responsive, typed single-page application |
-| **Database/Auth** | Supabase | User session management and persistent state |
 | **Deployment** | Databricks Apps (`app.yaml`) | Hosted directly on Databricks workspace infrastructure |
 
 ---
@@ -122,7 +121,6 @@ Nyaya_Sutra/
 ### STEP 1 — Prerequisites
 - Databricks workspace with **Databricks Apps** enabled.
 - Access to **Databricks AI Gateway** routing to `databricks-gpt-5-4`.
-- A provisioned **Supabase** project for the frontend state/auth.
 
 ### STEP 2 — Build the Frontend
 Since Databricks Apps streams a Python backend directly but does not build Node projects dynamically, compile the frontend locally before deployment:
