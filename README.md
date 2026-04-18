@@ -1,13 +1,13 @@
 # Nyaya-Sutra — Agentic Legal Intelligence Platform
 
 > **Databricks Native App**
-> Powered by Databricks GPT-5-4 · Agent-Driven Legal Workflows · Dual-Mode Interface
+> Powered by databricks-meta-llama-3-3-70b-instruct · Agent-Driven Legal Workflows · Dual-Mode Interface
 
 ## 📖 Project Story & Motivation
 
 Understanding and navigating the complexities of Indian law can be an overwhelming challenge for citizens, while legal professionals often face time-consuming tasks related to legal auditing, tracing citations, and cross-referencing old IPC sections with the new BNS (Bharatiya Nyaya Sanhita). 
 
-**Nyaya-Sutra** was built as a fully-featured, agent-driven legal intelligence platform native to Databricks. It employs a dynamic agentic architecture to serve two distinct personas: Advocates and Citizens. By leveraging high-performance large language models (databricks-gpt-5-4) combined with a structured IPC-to-BNS mapping agent, the platform delivers deep courtroom-grade legal analysis for professionals while simplifying legal procedures into dynamic, state-aware action checklists for everyday citizens.
+**Nyaya-Sutra** was built as a fully-featured, agent-driven legal intelligence platform native to Databricks. It employs a dynamic agentic architecture to serve two distinct personas: Advocates and Citizens. By leveraging high-performance large language models (databricks-meta-llama-3-3-70b-instruct) combined with a structured IPC-to-BNS mapping agent, the platform delivers deep courtroom-grade legal analysis for professionals while simplifying legal procedures into dynamic, state-aware action checklists for everyday citizens.
 
 ---
 
@@ -27,9 +27,9 @@ Nyaya-Sutra is an agentic AI legal assistant tailored for the Indian legal frame
 
 | Layer | Tool | Purpose |
 |---|---|---|
-| **LLM** | Databricks GPT-5-4 (via AI Gateway) | Core AI engine powering all specialized agents |
+| **LLM** | Databricks databricks-meta-llama-3-3-70b-instruct (via AI Gateway) | Core AI engine powering all specialized agents |
 | **Backend** | Python (`app/main.py`) | Agent orchestration, routing, and API serving |
-| **Agentic Core** | Custom multi-agent framework | Specialized agents (`audit.py`, `citation_tracer.py`, `ipc_bns_agent.py`, etc.) |
+| **Agentic Core** | Custom multi-agent framework | Specialized agents (`legalAdviser.py`, `citation_tracer.py`, `lawyer_query.py`, etc.) |
 | **Frontend** | React + Vite + TypeScript + Tailwind CSS | Highly responsive, typed single-page application |
 | **Deployment** | Databricks Apps (`app.yaml`) | Hosted directly on Databricks workspace infrastructure |
 
@@ -49,22 +49,20 @@ flowchart TD
     %% Advocate Agentic Flow
     subgraph AdvocateFlow[Advocate Mode Agents]
         direction TB
-        AdvRouter --> Audit[Auditing Agent]
-        AdvRouter --> Cite[Citation Tracer Agent]
+        AdvRouter --> Audit[Legal Queries Agent]
         AdvRouter --> Map[IPC-BNS Mapping Agent]
-        AdvRouter --> Timeline[Timeline Creator Agent]
     end
 
     %% Citizen Agentic Flow
     subgraph CitizenFlow[Citizen Mode Agents]
         direction TB
         CitRouter --> Advice[Legal Advice Agent]
-        CitRouter --> Proced[Procedure Checklist Agent]
-        CitRouter --> Translate[Translation Agent]
+        CitRouter --> Proced[Procedure Guiding Agent]
+        CitRouter --> Translate[Query Agent]
     end
 
     %% Synthesis / LLM Layer
-    AdvocateFlow --> Synth["Databricks GPT-5-4<br/>AI Gateway"]
+    AdvocateFlow --> Synth["Databricks-meta-llama-3-3-70b-instruct<br/>AI Gateway"]
     CitizenFlow --> Synth
 
     %% Output
@@ -92,8 +90,6 @@ Nyaya_Sutra/
 │   └── ...                         ← API routes and Databricks endpoints
 │
 ├── src/                            ← Core Agentic Logic & Intelligence
-│   ├── audit.py                    ← Legal auditing logic
-│   ├── citation_tracer.py          ← Precedent and citation cross-referencing
 │   ├── ipc_bns_agent.py            ← IPC to BNS translation logic
 │   ├── lawyer_chat_agent.py        ← Advocate mode query handler
 │   ├── lawyer_router.py            ← Advocate sub-task router
@@ -101,7 +97,7 @@ Nyaya_Sutra/
 │   ├── citizen_router.py           ← Citizen sub-task router
 │   ├── legalAdviseAgent.py         ← Plain-language legal advice
 │   ├── procedureAgent.py           ← Dynamic procedural checklists
-│   ├── timeline_creator_agent.py   ← Event/timeline reconstruction
+│   ├── procedure.py                ← Procedure guidance for legal cases 
 │   └── translate_agent.py          ← Multilingual translation capabilities
 │
 ├── frontend/                       ← React + Vite SPA
@@ -120,7 +116,7 @@ Nyaya_Sutra/
 
 ### STEP 1 — Prerequisites
 - Databricks workspace with **Databricks Apps** enabled.
-- Access to **Databricks AI Gateway** routing to `databricks-gpt-5-4`.
+- Access to **Databricks AI Gateway** routing to `databricks-meta-llama-3-3-70b-instruct`.
 
 ### STEP 2 — Build the Frontend
 Since Databricks Apps streams a Python backend directly but does not build Node projects dynamically, compile the frontend locally before deployment:
@@ -143,7 +139,7 @@ env:
   - name: LLM_BASE_URL
     value: "https://<YOUR_DATABRICKS_GATEWAY_URL>/mlflow/v1"
   - name: MODEL
-    value: "databricks-gpt-5-4"
+    value: "databricks-meta-llama-3-3-70b-instruct"
 ```
 
 ### STEP 4 — Deploy the App
