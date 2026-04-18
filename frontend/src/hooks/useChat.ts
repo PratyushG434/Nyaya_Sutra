@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Message, Mode, UploadedFile, ChatResponse } from '../types';
+import { Message, Mode, UploadedFile, CitizenChatResponse, LawyerChatResponse } from '../types';
 
 const API_BASE_URL = '/api';
 
@@ -37,35 +37,78 @@ export function useChat(currentMode: Mode) {
       setError(null);
 
       try {
-        const history = [...messages, userMessage].map((m) => ({
-          role: m.role,
-          content: m.content,
-        }));
+        let data: CitizenChatResponse | LawyerChatResponse;
 
-        const response = await fetch(`${API_BASE_URL}/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            message: content,
-            mode: currentMode,
-            history,
-            files: attachments?.map((f) => f.name),
-          }),
-        });
+        if (currentMode === 'citizen') {
+          // Citizen mode: Send JSON to /api/chat
+          const history = [...modeMessages[currentMode], userMessage].map(((m) => ({
+            role: m.role,
+            content: m.content,
+          })));
 
-        if (!response.ok) {
-          throw new Error(`Server error: ${response.status}`);
+          const response = await fetch(`${API_BASE_URL}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: content,
+              mode: currentMode,
+              history,
+              files: attachments?.map((f) => f.name),
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+          }
+
+          data = await response.json();
+        } else {
+          // Lawyer mode: Send FormData to /api/lawyer-chat
+          const formData = new FormData();
+          formData.append('message', content);
+          formData.append('mode', 'advocate');
+
+          // If there are attachments, add the first file to the form
+          if (attachments && attachments.length > 0) {
+            // Note: The file was already uploaded via /api/upload
+            // We need to fetch it and add it to FormData
+            // For now, we'll just send the filename
+            // TODO: Improve file handling if backend needs actual file bytes
+            const firstFile = attachments[0];
+            if (firstFile.url) {
+              // Fetch the file and add to FormData
+              try {
+                const fileResponse = await fetch(firstFile.url);
+                const fileBlob = await fileResponse.blob();
+                formData.append('file', fileBlob, firstFile.name);
+              } catch (err) {
+                console.error('Error fetching file for lawyer chat:', err);
+              }
+            }
+          }
+
+          const response = await fetch(`${API_BASE_URL}/lawyer-chat`, {
+            method: 'POST',
+            body: formData,
+            // Don't set Content-Type header - browser will set it with boundary
+          });
+
+          if (!response.ok) {
+            throw new Error(`Server error: ${response.status}`);
+          }
+
+          data = await response.json();
         }
-
-        const data: ChatResponse = await response.json();
 
         const assistantMessage: Message = {
           id: crypto.randomUUID(),
           role: 'assistant',
           content: data.reply,
           timestamp: new Date(),
-          timeline: data.timeline,
-          audit_results: data.audit_results,
+          type: data.type,
+          agents: 'agents' in data ? data.agents : undefined,
+          route: 'route' in data ? data.route : undefined,
+          used_file: 'used_file' in data ? data.used_file : undefined,
         };
 
         setModeMessages((prev) => ({
@@ -80,7 +123,7 @@ export function useChat(currentMode: Mode) {
         setIsLoading(false);
       }
     },
-    [messages, currentMode]
+    [modeMessages, currentMode]
   );
 
   const uploadFile = useCallback(async (file: File): Promise<UploadedFile> => {

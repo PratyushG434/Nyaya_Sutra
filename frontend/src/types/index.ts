@@ -18,6 +18,12 @@ export interface Message {
   content: string;
   timestamp: Date;
   attachments?: UploadedFile[];
+  // Backend response fields
+  type?: string;
+  agents?: string[];
+  route?: string;
+  used_file?: boolean;
+  // Legacy fields (for future use)
   timeline?: TimelineStep[];
   audit_results?: AuditResults;
 }
@@ -36,9 +42,19 @@ export interface ChatRequest {
   files?: string[];
 }
 
-export interface ChatResponse {
+// Citizen mode response
+export interface CitizenChatResponse {
   reply: string;
-  timeline?: TimelineStep[];
-  audit_results?: AuditResults;
-  sources?: string[];
+  type: string;
+  agents: string[];
 }
+
+// Lawyer mode response
+export interface LawyerChatResponse {
+  reply: string;
+  type: string;
+  route: string;
+  used_file?: boolean;
+}
+
+export type ChatResponse = CitizenChatResponse | LawyerChatResponse;
