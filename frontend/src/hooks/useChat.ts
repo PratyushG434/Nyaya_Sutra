@@ -1,42 +1,19 @@
-import { useState, useCallback, useEffect } from 'react';
-import { Message, Mode, UploadedFile } from '../types';
+import { useState, useCallback } from 'react';
+import { Message, Mode, UploadedFile, ChatResponse } from '../types';
 
-const FLASK_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = '/api';
 
-export function useChat(mode: Mode) {
-  const [messages, setMessages] = useState<Message[]>([]);
+export function useChat(currentMode: Mode) {
+  // Store messages for both modes in memory (clears on refresh)
+  const [modeMessages, setModeMessages] = useState<Record<Mode, Message[]>>({
+    citizen: [],
+    lawyer: [],
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const storageKey = `nyaya_saathi_chat_${mode}`;
-
-  // Initialize messages from localStorage on mount or when mode changes
-  useEffect(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        // Convert string timestamps back to Date objects
-        const hydrated = parsed.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        }));
-        setMessages(hydrated);
-      } catch (e) {
-        console.error('Failed to parse chat history from localStorage', e);
-        setMessages([]);
-      }
-    } else {
-      setMessages([]);
-    }
-  }, [mode, storageKey]);
-
-  // Save messages to localStorage whenever they change
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem(storageKey, JSON.stringify(messages));
-    }
-  }, [messages, storageKey]);
+  // Active messages for the current mode
+  const messages = modeMessages[currentMode];
 
   const sendMessage = useCallback(
     async (content: string, attachments?: UploadedFile[]) => {
@@ -50,28 +27,27 @@ export function useChat(mode: Mode) {
         attachments,
       };
 
-      setMessages((prev) => {
-        const updated = [...prev, userMessage];
-        localStorage.setItem(storageKey, JSON.stringify(updated));
-        return updated;
-      });
+      // Add user message to the current mode's history
+      setModeMessages((prev) => ({
+        ...prev,
+        [currentMode]: [...prev[currentMode], userMessage],
+      }));
       
       setIsLoading(true);
       setError(null);
 
       try {
-        // Use the most up-to-date messages for history
         const history = [...messages, userMessage].map((m) => ({
           role: m.role,
           content: m.content,
         }));
 
-        const response = await fetch(`${FLASK_BASE_URL}/chat`, {
+        const response = await fetch(`${API_BASE_URL}/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             message: content,
-            mode,
+            mode: currentMode,
             history,
             files: attachments?.map((f) => f.name),
           }),
@@ -81,37 +57,37 @@ export function useChat(mode: Mode) {
           throw new Error(`Server error: ${response.status}`);
         }
 
-        const data = await response.json();
+        const data: ChatResponse = await response.json();
 
         const assistantMessage: Message = {
           id: crypto.randomUUID(),
           role: 'assistant',
           content: data.reply,
           timestamp: new Date(),
+          timeline: data.timeline,
+          audit_results: data.audit_results,
         };
 
-        setMessages((prev) => {
-          const updated = [...prev, assistantMessage];
-          localStorage.setItem(storageKey, JSON.stringify(updated));
-          return updated;
-        });
+        setModeMessages((prev) => ({
+          ...prev,
+          [currentMode]: [...prev[currentMode], assistantMessage],
+        }));
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Failed to connect to server.'
         );
-        // We keep the user message so it shows in history even if the response failed
       } finally {
         setIsLoading(false);
       }
     },
-    [messages, mode, storageKey]
+    [messages, currentMode]
   );
 
   const uploadFile = useCallback(async (file: File): Promise<UploadedFile> => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${FLASK_BASE_URL}/upload`, {
+    const response = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',
       body: formData,
     });
@@ -131,10 +107,12 @@ export function useChat(mode: Mode) {
   }, []);
 
   const clearChat = useCallback(() => {
-    setMessages([]);
-    localStorage.removeItem(storageKey);
+    setModeMessages((prev) => ({
+      ...prev,
+      [currentMode]: [],
+    }));
     setError(null);
-  }, [storageKey]);
+  }, [currentMode]);
 
   return { messages, isLoading, error, sendMessage, uploadFile, clearChat };
 }

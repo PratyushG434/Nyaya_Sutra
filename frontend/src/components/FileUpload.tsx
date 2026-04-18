@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react';
-import { Paperclip, X, FileText, Image, File } from 'lucide-react';
+import { Paperclip, X, FileText, Image, File, Loader2 } from 'lucide-react';
 import { UploadedFile } from '../types';
 
 interface FileUploadProps {
+  files: UploadedFile[];
   onFilesChange: (files: UploadedFile[]) => void;
   onUpload: (file: File) => Promise<UploadedFile>;
 }
@@ -19,9 +20,8 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function FileUpload({ onFilesChange, onUpload }: FileUploadProps) {
+export function FileUpload({ files, onFilesChange, onUpload }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [files, setFiles] = useState<UploadedFile[]>([]);
   const [uploading, setUploading] = useState(false);
 
   const handleSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,13 +35,11 @@ export function FileUpload({ onFilesChange, onUpload }: FileUploadProps) {
         try {
           const result = await onUpload(file);
           uploaded.push(result);
-        } catch {
-          uploaded.push({ name: file.name, size: file.size, type: file.type });
+        } catch (err) {
+          console.error('Upload failed for', file.name, err);
         }
       }
-      const updated = [...files, ...uploaded];
-      setFiles(updated);
-      onFilesChange(updated);
+      onFilesChange([...files, ...uploaded]);
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -50,27 +48,25 @@ export function FileUpload({ onFilesChange, onUpload }: FileUploadProps) {
 
   const removeFile = (index: number) => {
     const updated = files.filter((_, i) => i !== index);
-    setFiles(updated);
     onFilesChange(updated);
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex items-center">
       {files.length > 0 && (
-        <div className="flex flex-wrap gap-2 px-1 pb-2">
+        <div className="flex flex-wrap gap-2 mr-2 max-w-[300px] max-h-[100px] overflow-y-auto scrollbar-hide">
           {files.map((file, i) => (
             <div
               key={i}
-              className="flex items-center gap-1.5 bg-paper-100 border border-paper-200 rounded-lg px-2.5 py-1.5 text-xs text-paper-800 group"
+              className="flex items-center gap-1.5 bg-paper-100 border border-paper-200 rounded-lg px-2 py-1 text-[10px] text-paper-800 group"
             >
               <span className="text-paper-400">{getFileIcon(file.type)}</span>
-              <span className="max-w-[120px] truncate font-medium">{file.name}</span>
-              <span className="text-paper-300">{formatSize(file.size)}</span>
+              <span className="max-w-[80px] truncate font-medium">{file.name}</span>
               <button
                 onClick={() => removeFile(i)}
                 className="ml-0.5 text-paper-300 hover:text-red-500 transition-colors"
               >
-                <X size={12} />
+                <X size={10} />
               </button>
             </div>
           ))}
@@ -80,7 +76,7 @@ export function FileUpload({ onFilesChange, onUpload }: FileUploadProps) {
         ref={inputRef}
         type="file"
         multiple
-        accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg"
+        accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.mp3,.wav,.m4a"
         onChange={handleSelect}
         className="hidden"
       />
@@ -88,10 +84,14 @@ export function FileUpload({ onFilesChange, onUpload }: FileUploadProps) {
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={uploading}
-        className="flex items-center justify-center w-9 h-9 rounded-lg text-paper-700 hover:text-paper-900 hover:bg-paper-100 transition-all duration-300 disabled:opacity-50"
+        className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl text-paper-700 hover:text-paper-900 hover:bg-paper-100 transition-all duration-300 disabled:opacity-50"
         title="Attach file"
       >
-        <Paperclip size={18} className={uploading ? 'animate-pulse' : ''} />
+        {uploading ? (
+          <Loader2 size={18} className="animate-spin text-paper-400" />
+        ) : (
+          <Paperclip size={18} />
+        )}
       </button>
     </div>
   );

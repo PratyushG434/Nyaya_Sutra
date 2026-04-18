@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Send, Trash2, Scale, BookOpen, Shield, MessageSquare, MoreHorizontal } from 'lucide-react';
+import { Send, Trash2, Scale, BookOpen, Shield, MessageSquare } from 'lucide-react';
 import { Mode, UploadedFile } from '../types';
 import { useChat } from '../hooks/useChat';
 import { ModeSelector } from './ModeSelector';
@@ -59,7 +59,6 @@ export function ChatInterface() {
 
   const handleModeChange = (newMode: Mode) => {
     setMode(newMode);
-    clearChat();
   };
 
   const suggestions = mode === 'citizen' ? CITIZEN_SUGGESTIONS : LAWYER_SUGGESTIONS;
@@ -157,7 +156,7 @@ export function ChatInterface() {
             {messages.map((message) => (
               <MessageBubble key={message.id} message={message} mode={mode} />
             ))}
-            {isLoading && <TypingIndicator mode={mode} />}
+            {isLoading && <TypingIndicator />}
             {error && (
               <div className="flex justify-center py-4">
                 <div className="flex items-center gap-3 px-5 py-3 bg-red-50 border border-red-100 rounded-2xl text-sm text-red-600 shadow-sm">
@@ -174,18 +173,11 @@ export function ChatInterface() {
       <div className="flex-shrink-0 px-6 pb-8 max-w-4xl mx-auto w-full">
         <div className="relative group">
           <div className="absolute -inset-0.5 bg-gradient-to-b from-paper-200 to-paper-100 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
-          <div className="relative flex flex-col gap-2 p-2 rounded-2xl border border-paper-200 bg-white shadow-xl">
-            {pendingFiles.length > 0 && (
-              <div className="px-4 py-2 border-b border-paper-100">
-                <FileUpload
-                  onFilesChange={setPendingFiles}
-                  onUpload={uploadFile}
-                />
-              </div>
-            )}
+          <div className="relative flex flex-col p-2 rounded-2xl border border-paper-200 bg-white shadow-xl transition-all duration-300">
             <div className="flex items-end gap-2 px-2 py-2">
               <div className="flex items-center gap-1">
                 <FileUpload
+                  files={pendingFiles}
                   onFilesChange={setPendingFiles}
                   onUpload={uploadFile}
                 />

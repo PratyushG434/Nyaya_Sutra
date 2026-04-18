@@ -1,11 +1,25 @@
 export type Mode = 'citizen' | 'lawyer';
 
+export interface TimelineStep {
+  step: number;
+  title: string;
+  status: 'done' | 'current' | 'upcoming';
+}
+
+export interface AuditResults {
+  statutes: string[];
+  precedents: string[];
+  warnings: string[];
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
   attachments?: UploadedFile[];
+  timeline?: TimelineStep[];
+  audit_results?: AuditResults;
 }
 
 export interface UploadedFile {
@@ -24,5 +38,7 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   reply: string;
+  timeline?: TimelineStep[];
+  audit_results?: AuditResults;
   sources?: string[];
 }

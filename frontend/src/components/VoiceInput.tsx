@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Mic, MicOff, Loader2 } from 'lucide-react';
+import { Mic } from 'lucide-react';
 
 interface VoiceInputProps {
   onTranscript: (text: string) => void;
