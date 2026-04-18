@@ -113,17 +113,11 @@ def analyze_ipc_to_bns(file_bytes: bytes, spark: SparkSession = None) -> Dict[st
     Everything else is identical to original logic.
     """
     try:
+        # Get or create Spark session
         if spark is None:
-            try:
-                spark = SparkSession.getActiveSession()
-                if spark is None:
-                    spark = SparkSession.builder.appName("ipc_bns_analyzer").getOrCreate()
-                else:
-                    # Test if session is still active
-                    spark.conf.get("spark.app.id")
-            except Exception:
-                # Session expired, create new one
-                spark = SparkSession.builder.appName("ipc_bns_analyzer").getOrCreate()
+            spark = SparkSession.getActiveSession()
+            if spark is None:
+                raise RuntimeError("No active Spark session found. Please run from a notebook or provide a spark parameter.")
 
         w = WorkspaceClient()
 
