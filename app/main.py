@@ -8,11 +8,13 @@ import sys
 app = Flask(__name__, static_folder="static", static_url_path="")
 CORS(app)
 
-UPLOAD_FOLDER      = '/Workspace/Repos/cse240001024@iiti.ac.in/Nyaya_Sutra/app/uploads'
+UPLOAD_FOLDER      = '/tmp/uploads'
 ALLOWED_EXTENSIONS = {'pdf', 'mp3', 'wav', 'm4a', 'ogg'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

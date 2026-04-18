@@ -76,12 +76,12 @@ Be specific about section numbers, document names, and actionable steps."""
 
 # ── Step 4: Full pipeline ─────────────────────────────────────────────────────
 def legal_advise_agent(citizen_query):
-    print(f"🔍 Query: {citizen_query}\n")
+    # print(f"🔍 Query: {citizen_query}\n")
 
     query_embedding = embed_query(citizen_query)
     chunks          = retrieve_chunks(query_embedding)
     advice          = generate_legal_advice(citizen_query, chunks)
 
-    print(f"📄 Retrieved {len(chunks)} chunks")
-    print(f"\n⚖️ Legal Advice:\n{advice}")
+    # print(f"📄 Retrieved {len(chunks)} chunks")
+    # print(f"\n⚖️ Legal Advice:\n{advice}")
     return advice

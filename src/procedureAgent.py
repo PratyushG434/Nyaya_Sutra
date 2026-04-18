@@ -107,12 +107,12 @@ Assume the citizen will follow this guide on their own."""
 
 # ── Step 4: Full pipeline ─────────────────────────────────────────────────────
 def procedure_agent(citizen_query):
-    print(f"🔍 Query: {citizen_query}\n")
+    # print(f"🔍 Query: {citizen_query}\n")
 
     query_embedding = embed_query(citizen_query)
     chunks          = retrieve_chunks(query_embedding)
     guidance        = generate_procedure_guidance(citizen_query, chunks)
 
-    print(f"📄 Retrieved {len(chunks)} chunks")
-    print(f"\n📋 Procedure Guide:\n{guidance}")
+    # print(f"📄 Retrieved {len(chunks)} chunks")
+    # print(f"\n📋 Procedure Guide:\n{guidance}")
     return guidance

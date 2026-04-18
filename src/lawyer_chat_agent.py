@@ -76,13 +76,13 @@ def doc_chat_agent(query, file_bytes=None):
     If not → perform RAG on legal corpus.
     """
     if file_bytes:
-        print("📄 Using uploaded document as context...")
+        # print("📄 Using uploaded document as context...")
         doc_text       = extract_text_from_pdf(file_bytes)
         # Truncate to avoid token limits — take first 6000 chars
         context        = doc_text[:6000]
         context_source = "uploaded document"
     else:
-        print("🔍 No file — retrieving from legal corpus...")
+        # print("🔍 No file — retrieving from legal corpus...")
         query_embedding = embed_query(query)
         chunks          = retrieve_chunks(query_embedding)
         context         = "\n\n---\n\n".join(chunks)
