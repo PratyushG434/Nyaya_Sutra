@@ -1,7 +1,7 @@
 import requests
-from databricks.vector_search.client import VectorSearchClient
+from src.vector_search_utils import get_vector_search_client
 
-vsc = VectorSearchClient(disable_notice=True)
+vsc = get_vector_search_client()
 
 EMBEDDING_ENDPOINT = "databricks-bge-large-en"
 TOP_K = 5

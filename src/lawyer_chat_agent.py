@@ -1,7 +1,7 @@
 import requests
 import io
 from PyPDF2 import PdfReader
-from databricks.vector_search.client import VectorSearchClient
+from src.vector_search_utils import get_vector_search_client
 
 import os
 DATABRICKS_TOKEN = os.environ.get("DATABRICKS_TOKEN")
@@ -11,7 +11,7 @@ VS_ENDPOINT = "test"
 INDEX_NAME  = "workspace.default.legal_corpus_delta_vs_index"
 TOP_K       = 5
 
-vsc = VectorSearchClient(disable_notice=True)
+vsc = get_vector_search_client()
 
 SYSTEM_PROMPT = """You are an expert legal assistant helping a lawyer understand a legal document or answer legal questions.
 

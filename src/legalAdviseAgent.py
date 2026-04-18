@@ -1,5 +1,5 @@
 import requests
-from databricks.vector_search.client import VectorSearchClient
+from src.vector_search_utils import get_vector_search_client
 
 # ── Config ────────────────────────────────────────────────────────────────────
 VS_ENDPOINT  = "test"
@@ -9,7 +9,7 @@ TOP_K        = 6
 import os
 DATABRICKS_TOKEN = os.environ.get("DATABRICKS_TOKEN")
 WORKSPACE_URL    = os.environ.get("DATABRICKS_HOST")
-vsc = VectorSearchClient(disable_notice=True)
+vsc = get_vector_search_client()
 
 # ── System prompt ─────────────────────────────────────────────────────────────
 SYSTEM_PROMPT = """You are an expert Indian legal advisor helping citizens understand their legal situation.
